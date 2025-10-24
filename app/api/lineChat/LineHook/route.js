@@ -4,7 +4,6 @@ export async function POST(req) {
         const body = await req.json();
 
         console.log("req 1", body);
-        // console.log("req 2", body.events[0].message); // message text
         console.log("req 3", body.events[0].deliveryContext);
         console.log("req 4", body.events[0].source); // source id
 
