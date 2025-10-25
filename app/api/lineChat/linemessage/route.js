@@ -3,7 +3,7 @@ export async function POST(req) {
         const { userId, message } = await req.json();
         console.log("📨 Sending to userId:", userId);
         console.log("💬 Message:", message);
-        console.log("🔑 Token loaded:", !!process.env.LINE_ACCESS_TOKEN);
+        console.log("🔑 Token loaded:", !!process.env.local.LINE_ACCESS_TOKEN);
 
         const res = await fetch("https://api.line.me/v2/bot/message/push", {
             method: "POST",
