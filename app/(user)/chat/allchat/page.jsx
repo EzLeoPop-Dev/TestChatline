@@ -29,7 +29,7 @@ export default function ChatDashboard() {
         if (!message.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง");
 
         try {
-            const res = await fetch("/api/line", {
+            const res = await fetch("/api/lineChat/LineHook", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
