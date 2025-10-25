@@ -1,4 +1,4 @@
-import { chatHistory, broadcastUpdate } from "./strem.js";
+import { chatHistory, broadcastUpdate } from "./stream.js";
 
 // ส่งข้อความกลับไปหา LINE
 async function sendLineMessage(userId, text) {
