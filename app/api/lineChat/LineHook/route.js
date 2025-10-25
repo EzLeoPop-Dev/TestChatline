@@ -1,70 +1,76 @@
-let userList = []; // เก็บชั่วคราว ถ้าใช้ DB จริงก็ใช้ DB แทน
+// ✅ เก็บข้อความและรายชื่อผู้ใช้ในหน่วยความจำ (ชั่วคราว)
+let chatHistory = []; // [{ userId, displayName, messages: [{ from, text, timestamp }] }]
 
+// ✅ ใช้ LINE Messaging API ส่งข้อความกลับลูกค้า
+async function sendLineMessage(userId, text) {
+  const token = process.env.LINE_ACCESS_TOKEN;
+  if (!token) throw new Error("LINE_ACCESS_TOKEN not set");
+
+  await fetch("https://api.line.me/v2/bot/message/push", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      to: userId,
+      messages: [{ type: "text", text }],
+    }),
+  });
+}
+
+// ✅ POST: รับ webhook จาก LINE หรือส่งข้อความจาก UI
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    // 🔹 ถ้าเป็น webhook event จาก LINE
-    if (body.events) {
-      for (const event of body.events) {
-        if (event.type === "message" && event.message.type === "text") {
-          const userId = event.source.userId;
-          const text = event.message.text;
+    // 🟢 เคส 1: LINE webhook ส่งเข้ามา
+    if (body?.events) {
+      const event = body.events[0];
+      if (!event) return Response.json({ ok: true });
 
-          const existing = userList.find((u) => u.userId === userId);
-          if (existing) {
-            existing.lastMessage = text;
-          } else {
-            userList.push({ userId, lastMessage: text });
-          }
+      const userId = event.source?.userId;
+      const message = event.message?.text;
+      const timestamp = new Date(event.timestamp);
+      const displayName = `User-${userId.slice(-4)}`;
 
-          console.log(`📩 ${userId}: ${text}`);
-        }
-      }
-      return new Response("OK", { status: 200 });
-    }
-
-    // 🔹 ถ้าเป็น request ส่งข้อความ (push) จาก UI
-    const { action, userId, message } = body;
-    if (action === "sendMessage") {
-      if (!userId || !message)
-        return new Response(JSON.stringify({ error: "Missing userId or message" }), { status: 400 });
-
-      const token = process.env.LINE_ACCESS_TOKEN;
-      console.log("✅ Loaded LINE_ACCESS_TOKEN:", process.env.LINE_ACCESS_TOKEN ? "OK" : "MISSING");
-      if (!token)
-        return new Response(JSON.stringify({ error: "LINE_ACCESS_TOKEN not set" }), { status: 500 });
-
-      const res = await fetch("https://api.line.me/v2/bot/message/push", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          to: userId,
-          messages: [{ type: "text", text: message }],
-        }),
-      });
-
-      const textRes = await res.text();
-      console.log("📦 LINE API Response:", textRes);
-
-      if (!res.ok) {
-        return new Response(JSON.stringify({ error: textRes }), { status: res.status });
+      let user = chatHistory.find(u => u.userId === userId);
+      if (!user) {
+        user = { userId, displayName, messages: [] };
+        chatHistory.push(user);
       }
 
-      return new Response(JSON.stringify({ success: true }), { status: 200 });
+      user.messages.push({ from: "customer", text: message, timestamp });
+
+      console.log(`📩 From ${displayName}: ${message}`);
+      return Response.json({ ok: true });
     }
 
-    return new Response("No action", { status: 200 });
+    // 🟢 เคส 2: UI ฝั่งพนักงานส่งข้อความ
+    if (body?.userId && body?.text) {
+      const { userId, text } = body;
+
+      // ส่งไปหา LINE ลูกค้า
+      await sendLineMessage(userId, text);
+
+      // เก็บข้อความฝั่งพนักงานใน history
+      const user = chatHistory.find(u => u.userId === userId);
+      if (user) {
+        user.messages.push({ from: "agent", text, timestamp: new Date() });
+      }
+
+      console.log(`📤 Sent to ${userId}: ${text}`);
+      return Response.json({ ok: true });
+    }
+
+    return Response.json({ error: "Invalid POST data" }, { status: 400 });
   } catch (err) {
-    console.error("❌ Server Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    console.error("❌ Error:", err);
+    return Response.json({ error: err.message }, { status: 500 });
   }
 }
 
-// GET ใช้ดึงรายชื่อลูกค้าสำหรับ UI
+// ✅ GET: ดึงรายชื่อและประวัติแชททั้งหมด
 export async function GET() {
-  return Response.json(userList);
+  return Response.json(chatHistory);
 }
