@@ -8,7 +8,7 @@ export default function ChatPanel() {
 
   async function sendMessage() {
     setStatus("กำลังส่ง...");
-    const res = await fetch("/api/linechat/linemessage", {
+    const res = await fetch("/api/lineChat/linemessage", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, message }),
