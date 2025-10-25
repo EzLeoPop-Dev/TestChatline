@@ -1,4 +1,3 @@
-// ChatUI.jsx
 import { useEffect, useState, useRef } from "react";
 
 export default function ChatUI() {
@@ -9,7 +8,7 @@ export default function ChatUI() {
 
     // SSE สำหรับ realtime
     useEffect(() => {
-        const evtSource = new EventSource("/api/chat?stream=true");
+        const evtSource = new EventSource("/api/lineChat/LineHook/stream=true");
         evtSource.onmessage = (e) => {
             const data = JSON.parse(e.data);
             setChatHistory(data);
@@ -24,7 +23,7 @@ export default function ChatUI() {
 
     const sendMessage = async () => {
         if (!message || !selectedUser) return;
-        await fetch("/api/chat", {
+        await fetch("/api/lineChat/LineHook", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: selectedUser.userId, text: message }),
@@ -64,8 +63,8 @@ export default function ChatUI() {
                         >
                             <div
                                 className={`px-4 py-2 rounded-lg max-w-xs ${msg.from === "agent"
-                                        ? "bg-blue-500 text-white"
-                                        : "bg-gray-300 text-gray-900"
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-gray-300 text-gray-900"
                                     }`}
                             >
                                 {msg.text}
