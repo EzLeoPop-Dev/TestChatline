@@ -11,7 +11,7 @@ export default function ChatDashboard() {
     useEffect(() => {
         async function fetchUsers() {
             try {
-                const res = await fetch("/api/line");
+                const res = await fetch("/api/lineChat/LineHook");
                 const data = await res.json();
                 setCustomers(data);
             } catch (err) {
