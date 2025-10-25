@@ -12,7 +12,7 @@ export async function POST(req) {
 
     for (const event of body.events) {
       // ข้อมูลผู้ใช้
-      const userId = event.source?.userId || "UnknownUser";
+      const userId = event.source.userId;
       const type = event.type;
 
       if (type === "message" && event.message.type === "text") {
