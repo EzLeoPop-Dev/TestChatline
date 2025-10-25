@@ -8,7 +8,7 @@ export default function ChatPage() {
 
     // โหลดข้อมูลแบบ Realtime ผ่าน SSE
     useEffect(() => {
-        const eventSource = new EventSource("/api/lineChat?stream=true");
+        const eventSource = new EventSource("/api/lineChat/LineHook?stream=true");
 
         eventSource.onmessage = (e) => {
             try {
@@ -37,7 +37,7 @@ export default function ChatPage() {
     const sendMessage = async () => {
         if (!selectedUser || !message.trim()) return;
 
-        await fetch("/api/lineChat", {
+        await fetch("/api/lineChat/LineHook", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: selectedUser.userId, text: message }),
