@@ -31,6 +31,7 @@ export async function POST(req) {
         return new Response(JSON.stringify({ error: "Missing userId or message" }), { status: 400 });
 
       const token = process.env.LINE_ACCESS_TOKEN;
+      console.log("✅ Loaded LINE_ACCESS_TOKEN:", process.env.LINE_ACCESS_TOKEN ? "OK" : "MISSING");
       if (!token)
         return new Response(JSON.stringify({ error: "LINE_ACCESS_TOKEN not set" }), { status: 500 });
 
