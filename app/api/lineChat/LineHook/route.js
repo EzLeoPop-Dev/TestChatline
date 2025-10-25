@@ -20,6 +20,9 @@ export async function POST(req) {
       if (event.type === "message" && event.message.type === "text") {
         const replyToken = event.replyToken;
         const userMessage = event.message.text;
+        console.log(replyToken);
+        console.log(userMessage);
+        
 
         // สร้างข้อความตอบกลับ
         const replyMessage = {
