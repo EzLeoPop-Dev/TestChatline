@@ -112,7 +112,7 @@ export default function Sidebar() {
                                 >
                                     <div className="ml-4 flex flex-col space-y-1">
                                         <Link
-                                            href="/chat/discord"
+                                            href="/chat/allchat"
                                             className={`w-full text-left px-4 py-2 rounded-lg text-sm transition-colors duration-300 ${pathname === "/chat/discord"
                                                 ? "bg-white/20 text-white"
                                                 : "text-white/70 hover:bg-white/10 hover:text-white"
