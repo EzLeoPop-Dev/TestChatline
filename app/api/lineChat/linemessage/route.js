@@ -13,7 +13,7 @@ export async function POST(req) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.LINE_ACCESS_TOKEN}`,
+        "Authorization": `Bearer ${process.env.local.LINE_ACCESS_TOKEN}`,
       },
       body: JSON.stringify({
         to: userId,
