@@ -1,7 +1,7 @@
 let chatHistory = []; // [{ userId, displayName, messages: [{ from, text, timestamp }] }]
 let clients = []; // client ของ EventStream
 
-// ✅ แจ้งทุก client ให้ update
+// :white_check_mark: แจ้งทุก client ให้ update
 function broadcastUpdate() {
   const data = `data: ${JSON.stringify(chatHistory)}\n\n`;
   for (const client of clients) {
@@ -14,10 +14,10 @@ function broadcastUpdate() {
   }
 }
 
-// ✅ ฟังก์ชันส่งข้อความกลับ LINE
+// :white_check_mark: ฟังก์ชันส่งข้อความกลับ LINE
 async function sendLineMessage(userId, text) {
   const token = process.env.LINE_ACCESS_TOKEN;
-  if (!token) throw new Error("❌ LINE_ACCESS_TOKEN not set");
+  if (!token) throw new Error(":x: LINE_ACCESS_TOKEN not set");
 
   await fetch("https://api.line.me/v2/bot/message/push", {
     method: "POST",
@@ -32,12 +32,12 @@ async function sendLineMessage(userId, text) {
   });
 }
 
-// ✅ รองรับทั้ง SSE, webhook, และส่งข้อความ
+// :white_check_mark: รองรับทั้ง SSE, webhook, และส่งข้อความ
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const stream = searchParams.get("stream");
 
-  // 🔹 ถ้าเป็น stream mode (Realtime)
+  // :small_blue_diamond: ถ้าเป็น stream mode (Realtime)
   if (stream === "true") {
     return new Response(
       new ReadableStream({
@@ -64,16 +64,16 @@ export async function GET(req) {
     );
   }
 
-  // 🔹 ถ้าไม่ใช่ stream ก็ส่งข้อมูลธรรมดา
+  // :small_blue_diamond: ถ้าไม่ใช่ stream ก็ส่งข้อมูลธรรมดา
   return Response.json(chatHistory);
 }
 
-// ✅ POST: webhook จาก LINE หรือข้อความจาก agent
+// :white_check_mark: POST: webhook จาก LINE หรือข้อความจาก agent
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    // 🟢 เคส 1: ข้อมูลมาจาก LINE Webhook
+    // :green_circle: เคส 1: ข้อมูลมาจาก LINE Webhook
     if (body?.events) {
       const event = body.events[0];
       if (!event) return Response.json({ ok: true });
@@ -95,7 +95,7 @@ export async function POST(req) {
       return Response.json({ ok: true });
     }
 
-    // 🟢 เคส 2: ข้อความจากพนักงาน (UI)
+    // :green_circle: เคส 2: ข้อความจากพนักงาน (UI)
     if (body?.userId && body?.text) {
       const { userId, text } = body;
 
@@ -112,7 +112,7 @@ export async function POST(req) {
 
     return Response.json({ error: "Invalid POST data" }, { status: 400 });
   } catch (err) {
-    console.error("❌ Error:", err);
+    console.error(":x: Error:", err);
     return Response.json({ error: err.message }, { status: 500 });
   }
 }
