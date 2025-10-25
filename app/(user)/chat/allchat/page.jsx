@@ -6,24 +6,34 @@ export default function ChatPage() {
     const [selectedUser, setSelectedUser] = useState(null);
     const [message, setMessage] = useState("");
 
-    // โหลดรายชื่อ user
+    // ✅ ฟัง event จาก stream แบบเรียลไทม์
     useEffect(() => {
-        async function loadUsers() {
-            const res = await fetch("/api/lineChat/LineHook");
-            const data = await res.json();
+        const eventSource = new EventSource("/api/lineChat/LineHook/stream");
+
+        eventSource.onmessage = (e) => {
+            const data = JSON.parse(e.data);
             setUsers(data);
-        }
-        loadUsers();
-        const interval = setInterval(loadUsers, 3000); // อัปเดตทุก 3 วิ
-        return () => clearInterval(interval);
+        };
+
+        eventSource.onerror = () => {
+            console.warn("Stream disconnected, reconnecting...");
+            eventSource.close();
+            setTimeout(() => new EventSource("/api/lineChat/LineHook/stream"), 2000);
+        };
+
+        return () => eventSource.close();
     }, []);
 
+    // ✅ ส่งข้อความ
     const sendMessage = async () => {
         if (!selectedUser || !message.trim()) return;
         await fetch("/api/lineChat/LineHook", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: selectedUser.userId, text: message }),
+            body: JSON.stringify({
+                userId: selectedUser.userId,
+                text: message,
+            }),
         });
         setMessage("");
     };
@@ -33,7 +43,7 @@ export default function ChatPage() {
             {/* Sidebar: รายชื่อลูกค้า */}
             <div className="w-1/4 bg-gray-100 border-r overflow-y-auto">
                 <h2 className="p-4 font-bold text-lg">ลูกค้า</h2>
-                {users.map(u => (
+                {users.map((u) => (
                     <div
                         key={u.userId}
                         onClick={() => setSelectedUser(u)}
@@ -51,9 +61,15 @@ export default function ChatPage() {
                     <>
                         <div className="flex-1 p-4 overflow-y-auto bg-white">
                             {selectedUser.messages.map((m, i) => (
-                                <div key={i} className={`my-2 ${m.from === "customer" ? "text-left" : "text-right"}`}>
+                                <div
+                                    key={i}
+                                    className={`my-2 ${m.from === "customer" ? "text-left" : "text-right"
+                                        }`}
+                                >
                                     <span
-                                        className={`inline-block px-3 py-2 rounded-2xl ${m.from === "customer" ? "bg-gray-200" : "bg-green-200"
+                                        className={`inline-block px-3 py-2 rounded-2xl ${m.from === "customer"
+                                                ? "bg-gray-200"
+                                                : "bg-green-200 text-black"
                                             }`}
                                     >
                                         {m.text}
@@ -67,7 +83,7 @@ export default function ChatPage() {
                             <input
                                 className="flex-1 border rounded px-3 py-2 mr-2"
                                 value={message}
-                                onChange={e => setMessage(e.target.value)}
+                                onChange={(e) => setMessage(e.target.value)}
                                 placeholder="พิมพ์ข้อความ..."
                             />
                             <button
