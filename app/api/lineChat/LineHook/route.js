@@ -1,16 +1,27 @@
-let userList = []; // เก็บชั่วคราว ถ้าใช้ DB จริงก็ใช้ DB แทน
+// ✅ LINE Webhook + Push Message API รวมอยู่ในไฟล์เดียว
+let userList = []; // เก็บข้อมูล user ที่ทักมา (ชั่วคราว)
 
 export async function POST(req) {
   try {
     const body = await req.json();
+    const token = process.env.LINE_ACCESS_TOKEN;
 
-    // 🔹 ถ้าเป็น webhook event จาก LINE
+    if (!token) {
+      console.error("❌ Missing LINE_ACCESS_TOKEN in .env.local");
+      return new Response(
+        JSON.stringify({ error: "LINE_ACCESS_TOKEN not set" }),
+        { status: 500 }
+      );
+    }
+
+    // 🔹 ถ้ามี events แปลว่ามาจาก LINE Webhook
     if (body.events) {
       for (const event of body.events) {
         if (event.type === "message" && event.message.type === "text") {
           const userId = event.source.userId;
           const text = event.message.text;
 
+          // เก็บ user + ข้อความล่าสุด
           const existing = userList.find((u) => u.userId === userId);
           if (existing) {
             existing.lastMessage = text;
@@ -18,22 +29,25 @@ export async function POST(req) {
             userList.push({ userId, lastMessage: text });
           }
 
-          console.log(`📩 ${userId}: ${text}`);
+          console.log(`📩 รับข้อความจาก ${userId}: ${text}`);
         }
       }
+
+      // ต้องส่งกลับ 200 เพื่อให้ LINE รู้ว่า webhook ทำงานสำเร็จ
       return new Response("OK", { status: 200 });
     }
 
-    // 🔹 ถ้าเป็น request ส่งข้อความ (push) จาก UI
+    // 🔹 ถ้าไม่ใช่ Webhook → อาจเป็นคำสั่งจาก UI
     const { action, userId, message } = body;
+
     if (action === "sendMessage") {
       if (!userId || !message)
-        return new Response(JSON.stringify({ error: "Missing userId or message" }), { status: 400 });
+        return new Response(
+          JSON.stringify({ error: "Missing userId or message" }),
+          { status: 400 }
+        );
 
-      const token = process.env.LINE_ACCESS_TOKEN;
-      console.log("✅ Loaded LINE_ACCESS_TOKEN:", process.env.LINE_ACCESS_TOKEN ? "OK" : "MISSING");
-      if (!token)
-        return new Response(JSON.stringify({ error: "LINE_ACCESS_TOKEN not set" }), { status: 500 });
+      console.log(`🚀 ส่งข้อความถึง ${userId}: ${message}`);
 
       const res = await fetch("https://api.line.me/v2/bot/message/push", {
         method: "POST",
@@ -47,24 +61,27 @@ export async function POST(req) {
         }),
       });
 
-      const textRes = await res.text();
-      console.log("📦 LINE API Response:", textRes);
+      const result = await res.text();
+      console.log("📦 LINE API Response:", result);
 
-      if (!res.ok) {
-        return new Response(JSON.stringify({ error: textRes }), { status: res.status });
-      }
+      if (!res.ok)
+        return new Response(JSON.stringify({ error: result }), {
+          status: res.status,
+        });
 
       return new Response(JSON.stringify({ success: true }), { status: 200 });
     }
 
-    return new Response("No action", { status: 200 });
+    return new Response("No valid action", { status: 200 });
   } catch (err) {
     console.error("❌ Server Error:", err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+    });
   }
 }
 
-// GET ใช้ดึงรายชื่อลูกค้าสำหรับ UI
+// 🔹 ใช้ดึงรายชื่อ user ที่เคยส่งข้อความมา
 export async function GET() {
   return Response.json(userList);
 }

@@ -1,110 +1,131 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
-export default function ChatDashboard() {
-    const [customers, setCustomers] = useState([]);      // รายชื่อลูกค้า
-    const [selectedUser, setSelectedUser] = useState(null); // ลูกค้าที่เลือกตอบ
-    const [message, setMessage] = useState("");          // ข้อความที่จะส่ง
-    const [status, setStatus] = useState("");            // สถานะส่งข้อความ
+export default function ChatPage() {
+  const [users, setUsers] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState("");
 
-    // 🔄 ดึงรายชื่อลูกค้า ทุก 5 วินาที
-    useEffect(() => {
-        async function fetchUsers() {
-            try {
-                const res = await fetch("/api/lineChat/LineHook");
-                const data = await res.json();
-                setCustomers(data);
-            } catch (err) {
-                console.error("Failed to fetch users:", err);
-            }
-        }
-        fetchUsers();
-        const interval = setInterval(fetchUsers, 5000);
-        return () => clearInterval(interval);
-    }, []);
+  // 🔁 ดึงรายชื่อ user ทุก 5 วิ
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const res = await fetch("/api/lineChat/LineHook");
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error("Error fetching users:", err);
+      }
+    };
 
-    // ส่งข้อความไปลูกค้า
-    async function sendMessage() {
-        if (!selectedUser) return alert("กรุณาเลือกลูกค้า");
-        if (!message.trim()) return alert("กรุณาพิมพ์ข้อความก่อนส่ง");
+    loadUsers();
+    const interval = setInterval(loadUsers, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-        try {
-            const res = await fetch("/api/lineChat/LineHook", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "sendMessage",
-                    userId: selectedUser.userId,
-                    message,
-                }),
-            });
-
-            if (res.ok) {
-                setStatus("✅ ส่งข้อความสำเร็จ");
-                setMessage(""); // เคลียร์ข้อความหลังส่ง
-            } else {
-                const data = await res.json();
-                setStatus("❌ ส่งไม่สำเร็จ: " + (data.error || ""));
-            }
-        } catch (err) {
-            console.error(err);
-            setStatus("❌ เกิดข้อผิดพลาด");
-        }
+  // 📨 ส่งข้อความไปหา LINE User
+  async function sendMessage() {
+    if (!selected) {
+      alert("กรุณาเลือกลูกค้าก่อนส่งข้อความ");
+      return;
+    }
+    if (!message.trim()) {
+      alert("กรุณาพิมพ์ข้อความก่อนส่ง");
+      return;
     }
 
-    return (
-        <div className="p-6 grid grid-cols-2 gap-6">
+    setStatus("⏳ กำลังส่ง...");
 
-            {/* ฝั่งรายชื่อลูกค้า */}
-            <div className="border rounded-2xl p-4">
-                <h3 className="font-bold mb-3 text-lg">รายชื่อลูกค้า</h3>
-                <ul className="space-y-2 max-h-[500px] overflow-y-auto">
-                    {customers.map((c) => (
-                        <li
-                            key={c.userId}
-                            onClick={() => setSelectedUser(c)}
-                            className={`p-2 border rounded cursor-pointer ${selectedUser?.userId === c.userId
-                                    ? "bg-green-100 border-green-400"
-                                    : "hover:bg-gray-50"
-                                }`}
-                        >
-                            <p className="text-sm font-medium">{c.userId}</p>
-                            <p className="text-xs text-gray-500">{c.lastMessage}</p>
-                        </li>
-                    ))}
-                    {customers.length === 0 && (
-                        <li className="text-gray-400 text-sm">ยังไม่มีลูกค้า</li>
-                    )}
-                </ul>
-            </div>
+    try {
+      const res = await fetch("/api/lineChat/LineHook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sendMessage",
+          userId: selected.userId,
+          message,
+        }),
+      });
 
-            {/* ฝั่งส่งข้อความ */}
-            <div className="border rounded-2xl p-4">
-                <h3 className="font-bold mb-3 text-lg">ส่งข้อความ</h3>
-                {selectedUser ? (
-                    <>
-                        <p className="text-sm text-gray-500 mb-2">
-                            กำลังตอบ: <b>{selectedUser.userId}</b>
-                        </p>
-                        <textarea
-                            className="border p-2 w-full rounded mb-3"
-                            rows={4}
-                            placeholder="พิมพ์ข้อความ"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                        />
-                        <button
-                            onClick={sendMessage}
-                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded w-full"
-                        >
-                            ส่งข้อความ
-                        </button>
-                        <p className="text-sm mt-2">{status}</p>
-                    </>
-                ) : (
-                    <p className="text-gray-400">← กรุณาเลือกลูกค้าจากฝั่งซ้าย</p>
-                )}
+      const data = await res.json();
+      if (res.ok) {
+        setStatus("✅ ส่งข้อความสำเร็จ");
+        setMessage("");
+      } else {
+        setStatus("❌ ส่งไม่สำเร็จ: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("❌ เกิดข้อผิดพลาด");
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      
+      {/* รายชื่อลูกค้า */}
+      <div className="bg-white rounded-2xl shadow p-5">
+        <h2 className="font-bold text-lg mb-4">📋 รายชื่อลูกค้า</h2>
+
+        <div className="space-y-2 max-h-[600px] overflow-y-auto">
+          {users.length === 0 && (
+            <p className="text-gray-400 text-sm">ยังไม่มีลูกค้าทักเข้ามา</p>
+          )}
+          {users.map((u) => (
+            <div
+              key={u.userId}
+              onClick={() => setSelected(u)}
+              className={`p-3 border rounded-xl cursor-pointer transition ${
+                selected?.userId === u.userId
+                  ? "bg-green-100 border-green-400"
+                  : "hover:bg-gray-100"
+              }`}
+            >
+              <p className="font-medium text-sm break-all">{u.userId}</p>
+              <p className="text-xs text-gray-500 truncate">
+                💬 {u.lastMessage || "ยังไม่มีข้อความ"}
+              </p>
             </div>
+          ))}
         </div>
-    );
+      </div>
+
+      {/* กล่องส่งข้อความ */}
+      <div className="bg-white rounded-2xl shadow p-5 flex flex-col">
+        <h2 className="font-bold text-lg mb-4">💬 ส่งข้อความ</h2>
+
+        {selected ? (
+          <>
+            <p className="text-sm text-gray-600 mb-2">
+              กำลังตอบ: <span className="font-semibold">{selected.userId}</span>
+            </p>
+
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={5}
+              placeholder="พิมพ์ข้อความที่ต้องการส่ง..."
+              className="border rounded-xl p-3 w-full mb-3 resize-none focus:ring-2 focus:ring-green-400"
+            />
+
+            <button
+              onClick={sendMessage}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-xl transition"
+            >
+              🚀 ส่งข้อความ
+            </button>
+
+            {status && (
+              <p className="text-sm mt-3 text-gray-600">{status}</p>
+            )}
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-gray-400">
+            ← กรุณาเลือกลูกค้าจากฝั่งซ้าย
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
