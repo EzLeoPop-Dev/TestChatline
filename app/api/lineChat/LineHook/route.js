@@ -1,6 +1,7 @@
-import { chatHistory, broadcastUpdate } from "./stream.js";
+let clients = []; // เก็บ client ที่เชื่อม SSE
+let chatHistory = []; // เก็บข้อความทั้งหมดในหน่วยความจำ
 
-// ส่งข้อความกลับไปหา LINE
+// 🔹 ส่งข้อความกลับไปยัง LINE
 async function sendLineMessage(userId, text) {
   const token = process.env.LINE_ACCESS_TOKEN;
   if (!token) throw new Error("LINE_ACCESS_TOKEN not set");
@@ -18,12 +19,59 @@ async function sendLineMessage(userId, text) {
   });
 }
 
-// ✅ POST: รับ webhook จาก LINE หรือข้อความจาก UI
+// 🔹 broadcast ไปยังทุก client ที่เปิด SSE อยู่
+function broadcastUpdate() {
+  for (const client of clients) {
+    client.send(chatHistory);
+  }
+}
+
+// ✅ GET: สำหรับดึงข้อมูล หรือเปิด stream แบบ SSE
+export async function GET(req) {
+  const { searchParams } = new URL(req.url);
+
+  // ถ้ามีพารามิเตอร์ `?stream=true` ให้เปิด SSE แทน
+  if (searchParams.get("stream") === "true") {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          const send = (data) => {
+            controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
+          };
+
+          // เพิ่ม client
+          const client = { send };
+          clients.push(client);
+
+          // ส่งข้อมูลล่าสุดให้ตอนเชื่อมต่อ
+          send(chatHistory);
+
+          // ลบออกเมื่อ client ปิด
+          controller.oncancel = () => {
+            clients = clients.filter((c) => c !== client);
+          };
+        },
+      }),
+      {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        },
+      }
+    );
+  }
+
+  // ถ้าไม่ใช่ stream ก็แสดง chat history ธรรมดา
+  return Response.json(chatHistory);
+}
+
+// ✅ POST: ใช้ได้ทั้ง webhook จาก LINE และ agent ส่งข้อความ
 export async function POST(req) {
   try {
     const body = await req.json();
 
-    // 🟢 เคส 1: webhook จาก LINE เข้ามา
+    // 🟢 1) webhook จาก LINE
     if (body?.events) {
       const event = body.events[0];
       if (!event) return Response.json({ ok: true });
@@ -40,12 +88,12 @@ export async function POST(req) {
       }
 
       user.messages.push({ from: "customer", text: message, timestamp });
-      broadcastUpdate(); // 🔔 แจ้งทุก client ที่เปิดอยู่
+      broadcastUpdate(); // 🔔 แจ้งทุก client
 
       return Response.json({ ok: true });
     }
 
-    // 🟢 เคส 2: agent พิมพ์ข้อความส่งไป LINE
+    // 🟢 2) agent ส่งข้อความออกไปหา LINE
     if (body?.userId && body?.text) {
       const { userId, text } = body;
 
@@ -56,7 +104,7 @@ export async function POST(req) {
         user.messages.push({ from: "agent", text, timestamp: new Date() });
       }
 
-      broadcastUpdate(); // 🔔 แจ้งทุก client ที่เปิดอยู่
+      broadcastUpdate(); // 🔔 แจ้งทุก client
       return Response.json({ ok: true });
     }
 
@@ -65,9 +113,4 @@ export async function POST(req) {
     console.error("❌ Error:", err);
     return Response.json({ error: err.message }, { status: 500 });
   }
-}
-
-// ✅ GET: ดึงรายชื่อและประวัติแชททั้งหมด
-export async function GET() {
-  return Response.json(chatHistory);
 }
