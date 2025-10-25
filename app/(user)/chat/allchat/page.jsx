@@ -9,26 +9,25 @@ export default function ChatPanel() {
 
     useEffect(() => {
         async function fetchUsers() {
-            const res = await fetch("/api/lineChat/LineHook");
+            const res = await fetch("/api/linehook");
             const data = await res.json();
             setCustomers(data);
         }
         fetchUsers();
-        const interval = setInterval(fetchUsers, 5000); // อัปเดตทุก 5 วิ
+        const interval = setInterval(fetchUsers, 5000); // อัปเดตทุก 5 วินาที
         return () => clearInterval(interval);
     }, []);
 
     async function sendMessage() {
         if (!selectedUser) return alert("กรุณาเลือกลูกค้า");
-        const res = await fetch("/api/lineChat/linemessage", {
+        const res = await fetch("/api/lineSendMessage", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                userId: selectedUser.userId,
-                message,
-            }),
+            body: JSON.stringify({ userId: selectedUser.userId, message }),
         });
+
         setStatus(res.ok ? "✅ ส่งสำเร็จ" : "❌ ส่งไม่สำเร็จ");
+        if (res.ok) setMessage(""); // เคลียร์ข้อความหลังส่ง
     }
 
     return (
