@@ -2,109 +2,52 @@
 import { useEffect, useState } from "react";
 
 export default function ChatPage() {
-    const [users, setUsers] = useState([]);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
 
-    // โหลดข้อมูลแบบ Realtime ผ่าน SSE
-    useEffect(() => {
-        const eventSource = new EventSource("/api/lineChat/LineHook?stream=true");
-
-        eventSource.onmessage = (e) => {
-            try {
-                const data = JSON.parse(e.data);
-                setUsers(data);
-
-                // ถ้ามีคนถูกเลือกอยู่ → อัปเดตข้อความของคนนั้นด้วย
-                if (selectedUser) {
-                    const updated = data.find(u => u.userId === selectedUser.userId);
-                    if (updated) setSelectedUser(updated);
-                }
-            } catch (err) {
-                console.error("❌ Error parsing SSE:", err);
-            }
-        };
-
-        eventSource.onerror = () => {
-            console.warn("⚠️ SSE disconnected, will retry...");
-            eventSource.close();
-        };
-
-        return () => eventSource.close();
-    }, [selectedUser?.userId]); // เปิดเฉพาะ 1 ครั้ง
-
-    // ส่งข้อความจากพนักงาน
-    const sendMessage = async () => {
-        if (!selectedUser || !message.trim()) return;
-
-        await fetch("/api/lineChat/LineHook", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: selectedUser.userId, text: message }),
-        });
-
-        setMessage("");
+  // ดึงข้อมูลจาก API ทุกๆ 2 วิ
+  useEffect(() => {
+    const fetchMessages = async () => {
+      const res = await fetch("/api/lineChat/LineHook");
+      const data = await res.json();
+      setMessages(data);
     };
 
-    return (
-        <div className="flex h-screen">
-            {/* Sidebar: รายชื่อลูกค้า */}
-            <div className="w-1/4 bg-gray-100 border-r overflow-y-auto">
-                <h2 className="p-4 font-bold text-lg border-b">ลูกค้า</h2>
-                {users.length === 0 && (
-                    <div className="p-4 text-gray-400 text-sm">ยังไม่มีข้อความ</div>
-                )}
-                {users.map(u => (
-                    <div
-                        key={u.userId}
-                        onClick={() => setSelectedUser(u)}
-                        className={`p-3 cursor-pointer border-b hover:bg-gray-200 ${selectedUser?.userId === u.userId ? "bg-gray-300" : ""
-                            }`}
-                    >
-                        {u.displayName}
-                    </div>
-                ))}
-            </div>
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
-            {/* Main Chat */}
-            <div className="flex-1 flex flex-col bg-white">
-                {selectedUser ? (
-                    <>
-                        <div className="flex-1 p-4 overflow-y-auto">
-                            {selectedUser.messages.map((m, i) => (
-                                <div key={i} className={`my-2 ${m.from === "customer" ? "text-left" : "text-right"}`}>
-                                    <span
-                                        className={`inline-block px-3 py-2 rounded-2xl ${m.from === "customer" ? "bg-gray-200" : "bg-green-300"
-                                            }`}
-                                    >
-                                        {m.text}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
+  return (
+    <div className="min-h-screen bg-linear-to-br from-gray-900 to-gray-800 flex flex-col items-center py-10 text-white">
+      <h1 className="text-3xl font-bold mb-6">💬 LINE Webhook Chat</h1>
 
-                        {/* กล่องพิมพ์ข้อความ */}
-                        <div className="p-4 border-t flex bg-gray-50">
-                            <input
-                                className="flex-1 border rounded px-3 py-2 mr-2"
-                                value={message}
-                                onChange={e => setMessage(e.target.value)}
-                                placeholder="พิมพ์ข้อความ..."
-                            />
-                            <button
-                                onClick={sendMessage}
-                                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                            >
-                                ส่ง
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex items-center justify-center flex-1 text-gray-500">
-                        🗨️ เลือกลูกค้าจากด้านซ้ายเพื่อเริ่มแชท
-                    </div>
-                )}
+      <div className="w-full max-w-md bg-gray-700 rounded-2xl shadow-lg p-4 space-y-3 overflow-y-auto h-[70vh]">
+        {messages.length === 0 ? (
+          <p className="text-center text-gray-300">ยังไม่มีข้อความ</p>
+        ) : (
+          messages.map((msg, i) => (
+            <div
+              key={i}
+              className="flex items-start gap-3 bg-gray-800/50 rounded-xl p-3"
+            >
+              <img
+                src={msg.pictureUrl || "/default-avatar.png"}
+                alt="profile"
+                className="w-10 h-10 rounded-full border border-gray-500"
+              />
+              <div>
+                <div className="font-semibold text-green-400">
+                  {msg.displayName}
+                </div>
+                <div className="text-gray-100">{msg.text}</div>
+                <div className="text-xs text-gray-400">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
             </div>
-        </div>
-    );
+          ))
+        )}
+      </div>
+    </div>
+  );
 }
