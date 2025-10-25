@@ -9,7 +9,7 @@ export default function ChatPanel() {
 
     useEffect(() => {
         async function fetchUsers() {
-            const res = await fetch("/api/linehook");
+            const res = await fetch("/api/lineChat/LineHook");
             const data = await res.json();
             setCustomers(data);
         }
@@ -20,7 +20,7 @@ export default function ChatPanel() {
 
     async function sendMessage() {
         if (!selectedUser) return alert("กรุณาเลือกลูกค้า");
-        const res = await fetch("/api/lineSendMessage", {
+        const res = await fetch("/api/lineChat/linemessage", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId: selectedUser.userId, message }),
